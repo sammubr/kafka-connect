@@ -99,6 +99,7 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
 
     @Override
     public void configure(Map<String, ?> configs) {
+        System.out.println("esse é um log1");
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, ConfigUtils.translateDeprecatedConfigs(configs, new String[][]{
                 {ConfigName.INCLUDE, "whitelist"},
                 {ConfigName.EXCLUDE, "blacklist"},
@@ -137,7 +138,7 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
     }
 
     String renamed(String fieldName) {
-        System.out.println("esse é um log");
+        System.out.println("esse é um log2");
         final String mapping = renames.get(fieldName);
         return mapping == null ? fieldName : mapping;
     }
