@@ -103,6 +103,8 @@ services:
         sleep infinity
     networks:
       - mynetwork
+    volumes:
+      - ./build/libs:/data/connect-jars/samuel
 networks:
   mynetwork:
     driver: bridge
