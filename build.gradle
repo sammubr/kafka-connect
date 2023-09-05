@@ -20,8 +20,12 @@ dependencies {
     implementation "org.apache.kafka:connect-api:$kafkaconnectVersion"
     implementation "org.apache.kafka:connect-transforms:$kafkaconnectVersion"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.2'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    implementation 'com.google.guava:guava:31.1-jre'
+    testImplementation 'org.apache.logging.log4j:log4j-slf4j-impl:2.20.0'
+    implementation 'org.slf4j:slf4j-api:1.7.36'
+}
+
+tasks.named("build") {
+    finalizedBy("shadowJar")
 }
 
 tasks.named('test') {

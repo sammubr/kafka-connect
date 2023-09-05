@@ -33,6 +33,8 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.util.SchemaUtil;
 import org.apache.kafka.connect.transforms.util.SimpleConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,6 +48,7 @@ import static org.apache.kafka.connect.transforms.util.Requirements.requireStruc
 
 public abstract class App<R extends ConnectRecord<R>> implements Transformation<R>, Versioned {
 
+    private static final Logger log = LoggerFactory.getLogger(App.class);
     public static final String OVERVIEW_DOC = "Filter or rename fields."
             + "<p/>Use the concrete transformation type designed for the record key (<code>" + Key.class.getName() + "</code>) "
             + "or value (<code>" + Value.class.getName() + "</code>).";
@@ -99,7 +102,6 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
 
     @Override
     public void configure(Map<String, ?> configs) {
-        System.out.println("esse é um log1");
         final SimpleConfig config = new SimpleConfig(CONFIG_DEF, ConfigUtils.translateDeprecatedConfigs(configs, new String[][]{
                 {ConfigName.INCLUDE, "whitelist"},
                 {ConfigName.EXCLUDE, "blacklist"},
@@ -138,7 +140,6 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
     }
 
     String renamed(String fieldName) {
-        System.out.println("esse é um log2");
         final String mapping = renames.get(fieldName);
         return mapping == null ? fieldName : mapping;
     }
@@ -150,6 +151,7 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
 
     @Override
     public R apply(R record) {
+        log.info("##log record: " + record);
         if (operatingValue(record) == null) {
             return record;
         } else if (operatingSchema(record) == null) {
@@ -160,9 +162,12 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
     }
 
     private R applySchemaless(R record) {
+        log.info("##log record1: " + record);
         final Map<String, Object> value = requireMap(operatingValue(record), PURPOSE);
 
         final Map<String, Object> updatedValue = new HashMap<>(value.size());
+
+        log.info("##log value1: " + value);
 
         for (Map.Entry<String, Object> e : value.entrySet()) {
             final String fieldName = e.getKey();
@@ -176,6 +181,7 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
     }
 
     private R applyWithSchema(R record) {
+        log.info("##log record2: " + record);
         final Struct value = requireStruct(operatingValue(record), PURPOSE);
 
         Schema updatedSchema = schemaUpdateCache.get(value.schema());
@@ -185,6 +191,9 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
         }
 
         final Struct updatedValue = new Struct(updatedSchema);
+
+        log.info("##log updatedSchema: " + updatedSchema);
+        log.info("##log value2: " + value);
 
         for (Field field : updatedSchema.fields()) {
             final Object fieldValue = value.get(reverseRenamed(field.name()));
@@ -196,6 +205,7 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
 
     private Schema makeUpdatedSchema(Schema schema) {
         final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
+        log.info("##log schema: " + schema);
         for (Field field : schema.fields()) {
             if (filter(field.name())) {
                 builder.field(renamed(field.name()), field.schema());
