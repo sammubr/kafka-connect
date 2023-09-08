@@ -52,6 +52,8 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
     public static final String OVERVIEW_DOC = "Filter or rename fields."
             + "<p/>Use the concrete transformation type designed for the record key (<code>" + Key.class.getName() + "</code>) "
             + "or value (<code>" + Value.class.getName() + "</code>).";
+    public static final String BEFORE = "before";
+    public static final String AFTER = "after";
 
     interface ConfigName {
         String EXCLUDE = "exclude";
@@ -135,83 +137,15 @@ public abstract class App<R extends ConnectRecord<R>> implements Transformation<
         return m;
     }
 
-    boolean filter(String fieldName) {
-        return !exclude.contains(fieldName) && (include.isEmpty() || include.contains(fieldName));
-    }
-
-    String renamed(String fieldName) {
-        final String mapping = renames.get(fieldName);
-        return mapping == null ? fieldName : mapping;
-    }
-
-    String reverseRenamed(String fieldName) {
-        final String mapping = reverseRenames.get(fieldName);
-        return mapping == null ? fieldName : mapping;
-    }
-
     @Override
     public R apply(R record) {
-        log.info("##log record: " + record);
-        if (operatingValue(record) == null) {
-            return record;
-        } else if (operatingSchema(record) == null) {
-            return applySchemaless(record);
-        } else {
-            return applyWithSchema(record);
+        log.info("##log record: {}", record);
+        if (record.value() == null) {
+            log.info("##log tombstone record");
+            return null;
         }
-    }
-
-    private R applySchemaless(R record) {
-        log.info("##log record1: " + record);
-        final Map<String, Object> value = requireMap(operatingValue(record), PURPOSE);
-
-        final Map<String, Object> updatedValue = new HashMap<>(value.size());
-
-        log.info("##log value1: " + value);
-
-        for (Map.Entry<String, Object> e : value.entrySet()) {
-            final String fieldName = e.getKey();
-            if (filter(fieldName)) {
-                final Object fieldValue = e.getValue();
-                updatedValue.put(renamed(fieldName), fieldValue);
-            }
-        }
-
-        return newRecord(record, null, updatedValue);
-    }
-
-    private R applyWithSchema(R record) {
-        log.info("##log record2: " + record);
-        final Struct value = requireStruct(operatingValue(record), PURPOSE);
-
-        Schema updatedSchema = schemaUpdateCache.get(value.schema());
-        if (updatedSchema == null) {
-            updatedSchema = makeUpdatedSchema(value.schema());
-            schemaUpdateCache.put(value.schema(), updatedSchema);
-        }
-
-        final Struct updatedValue = new Struct(updatedSchema);
-
-        log.info("##log updatedSchema: " + updatedSchema);
-        log.info("##log value2: " + value);
-
-        for (Field field : updatedSchema.fields()) {
-            final Object fieldValue = value.get(reverseRenamed(field.name()));
-            updatedValue.put(field.name(), fieldValue);
-        }
-
-        return newRecord(record, updatedSchema, updatedValue);
-    }
-
-    private Schema makeUpdatedSchema(Schema schema) {
-        final SchemaBuilder builder = SchemaUtil.copySchemaBasics(schema, SchemaBuilder.struct());
-        log.info("##log schema: " + schema);
-        for (Field field : schema.fields()) {
-            if (filter(field.name())) {
-                builder.field(renamed(field.name()), field.schema());
-            }
-        }
-        return builder.build();
+        log.info("##log normal record");
+        return record;
     }
 
     @Override
