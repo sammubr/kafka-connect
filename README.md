@@ -1,6 +1,6 @@
 # Kafka Connect
 
-## Exemplo 1
+## [Exemplo 1](https://github.com/sammubr/kafka-connect/tree/main/example1)
 
 Sincroniza bases de dados mysql na origem e mysql no destino, usando JDBC Sink Connector em ambos:
 
@@ -10,7 +10,7 @@ Sincroniza bases de dados mysql na origem e mysql no destino, usando JDBC Sink C
 
 - Não foi configurado exclusão nessa sincronização
 
-## Exemplo 2
+## [Exemplo 2](https://github.com/sammubr/kafka-connect/tree/main/example2)
 
 Sincroniza bases de dados mysql na origem e mysql no destino, usando Debezium MySQL Connector e JDBC Sink Connector:
 
