@@ -1,0 +1,15 @@
+{
+  "name": "sink-jdbc-mysql",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "tasks.max": "1",
+    "connection.url": "jdbc:mysql://mysql:3306/test2",
+    "connection.user": "root",
+    "connection.password": "12345678",
+    "auto.create": "true",
+    "topics.regex": "mysql-state",
+    "insert.mode": "upsert",
+    "pk.mode": "record_value",
+    "pk.fields": "id"
+  }
+}

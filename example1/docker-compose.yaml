@@ -78,7 +78,7 @@ services:
       CONNECT_STATUS_STORAGE_TOPIC: _connect-status
       CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
       CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
-      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.storage.StringConverter'
       CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
       CONNECT_REST_ADVERTISED_HOST_NAME: 'kafka-connect'
       CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO'
@@ -93,18 +93,18 @@ services:
       - -c
       - |
         echo 'Installing Connector'
-        confluent-hub install --no-prompt debezium/debezium-connector-mysql:2.2.1
         confluent-hub install --no-prompt confluentinc/kafka-connect-jdbc:10.7.4
-        wget https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-j-8.1.0.tar.gz
-        tar -zxf mysql-connector-j-8.1.0.tar.gz
-        cp mysql-connector-j-8.1.0/mysql-connector-j-8.1.0.jar /usr/share/confluent-hub-components/confluentinc-kafka-connect-jdbc/lib
+        cp /home/mysql/mysql-connector-j-8.1.0.jar /usr/share/confluent-hub-components/confluentinc-kafka-connect-jdbc/lib
         echo 'Launching Kafka Connect worker'
         /etc/confluent/docker/run &
+        wget --retry-connrefused --wait=20 --post-file=/home/connectors/source-jdbc-mysql.json --header='Content-Type: application/json' http://localhost:8083/connectors &
+        wget --retry-connrefused --wait=20 --post-file=/home/connectors/sink-jdbc-mysql.json --header='Content-Type: application/json' http://localhost:8083/connectors &
         sleep infinity
     networks:
       - mynetwork
     volumes:
-      - ./build/libs:/data/connect-jars/samuel
+      - ./connectors:/home/connectors
+      - ../mysql:/home/mysql
 networks:
   mynetwork:
     driver: bridge

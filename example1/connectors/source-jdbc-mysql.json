@@ -1,0 +1,21 @@
+{
+  "name": "source-jdbc-mysql",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSourceConnector",
+    "tasks.max": "1",
+    "connection.url": "jdbc:mysql://mysql:3306/test1",
+    "connection.user": "user",
+    "connection.password": "123456",
+    "mode": "timestamp+incrementing",
+    "topic.prefix": "mysql-",
+    "poll.interval.ms": "1000",
+    "timestamp.column.name": "last_modified_date,created_date",
+    "incrementing.column.name": "id",
+    "validate.non.null": "false",
+    "transforms": "createKey,extractInt",
+    "transforms.createKey.type": "org.apache.kafka.connect.transforms.ValueToKey",
+    "transforms.createKey.fields": "id",
+    "transforms.extractInt.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+    "transforms.extractInt.field": "id"
+  }
+}
