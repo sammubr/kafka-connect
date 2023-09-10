@@ -1,0 +1,174 @@
+services:
+  mysql:
+    image: mysql:latest
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: 'test1'
+      MYSQL_ROOT_PASSWORD: '12345678'
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: '123456'
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d
+    ports:
+      - '3306:3306'
+    expose:
+      - '3306'
+    networks:
+      - mynetwork
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - mynetwork
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - '9092:9092'
+      - '9094:9094'
+    expose:
+      - '9092'
+      - '9094'
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_LISTENERS: INTERNAL://:9092,OUTSIDE://:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,OUTSIDE://host.docker.internal:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+    networks:
+      - mynetwork
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:6.0.1
+    depends_on:
+      - kafka
+    ports:
+      - '9021:9021'
+    expose:
+      - '9021'
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'kafka:9092'
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_CONNECT_CLUSTER: http://kafka-connect:8083
+      PORT: 9021
+    networks:
+      - mynetwork
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect-base:6.0.0
+    depends_on:
+      - zookeeper
+      - kafka
+    ports:
+      - 8083:8083
+    expose:
+      - '8083'
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: 'kafka:9092'
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: kafka-connect
+      CONNECT_CONFIG_STORAGE_TOPIC: _connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _connect-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_INTERNAL_KEY_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_INTERNAL_VALUE_CONVERTER: 'org.apache.kafka.connect.json.JsonConverter'
+      CONNECT_REST_ADVERTISED_HOST_NAME: 'kafka-connect'
+      CONNECT_LOG4J_ROOT_LOGLEVEL: 'INFO'
+      CONNECT_LOG4J_LOGGERS: 'org.apache.kafka.connect.runtime.rest=WARN,org.reflections=ERROR'
+      CONNECT_LOG4J_APPENDER_STDOUT_LAYOUT_CONVERSIONPATTERN: '[%d] %p %X{connector.context}%m (%c:%L)%n'
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1'
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components,/data/connect-jars
+    command:
+      - bash
+      - -c
+      - |
+        echo 'Installing Connector'
+        confluent-hub install --no-prompt mongodb/kafka-connect-mongodb:1.11.0
+        echo 'Launching Kafka Connect worker'
+        /etc/confluent/docker/run &
+        sleep infinity
+    networks:
+      - mynetwork
+    volumes:
+      - ./connectors:/home/connectors
+
+  mongo1:
+    hostname: mongo1
+    image: mongo
+    expose:
+      - 27017
+      - 30001
+    ports:
+      - 30001:27017
+    command: mongod --replSet my-mongo-set
+    networks:
+      - mynetwork
+  mongo2:
+    hostname: mongo2
+    image: mongo
+    expose:
+      - 27017
+      - 30002
+    ports:
+      - 30002:27017
+    command: mongod --replSet my-mongo-set
+    networks:
+      - mynetwork
+  mongo3:
+    hostname: mongo3
+    image: mongo
+    expose:
+      - 27017
+      - 30003
+    ports:
+      - 30003:27017
+    command: mongod --replSet my-mongo-set
+    networks:
+      - mynetwork
+
+  mongoinit:
+    image: mongo
+    restart: "no"
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    networks:
+      - mynetwork
+    command: >
+      mongosh --host mongo1:27017 --eval 
+      '
+      db = (new Mongo("mongo1:27017")).getDB("test");
+      config = {
+      "_id" : "my-mongo-set",
+      "members" : [
+        {
+          "_id" : 0,
+          "host" : "mongo1:27017"
+        },
+        {
+          "_id" : 1,
+          "host" : "mongo2:27017"
+        },
+        {
+          "_id" : 2,
+          "host" : "mongo3:27017"
+        }
+      ]
+      };
+      rs.initiate(config);
+      '
+
+networks:
+  mynetwork:
+    driver: bridge
