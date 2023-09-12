@@ -6,6 +6,9 @@
     "database": "test1",
     "collection": "state",
     "publish.full.document.only": true,
-    "topic.prefix": "mymongo"
+    "topic.prefix": "mymongo",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "publish.full.document.only.tombstone.on.delete": true
   }
 }

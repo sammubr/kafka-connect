@@ -1,20 +1,55 @@
 services:
-  mysql:
-    image: mysql:latest
-    command: --default-authentication-plugin=mysql_native_password
-    environment:
-      MYSQL_DATABASE: 'test1'
-      MYSQL_ROOT_PASSWORD: '12345678'
-      MYSQL_USER: 'user'
-      MYSQL_PASSWORD: '123456'
-    volumes:
-      - ./initdb:/docker-entrypoint-initdb.d
-    ports:
-      - '3306:3306'
+
+  mongo1:
+    hostname: mongo1
+    image: mongo:latest
     expose:
-      - '3306'
+      - 27017
+      - 30001
+    ports:
+      - 30001:27017
+    command: mongod --replSet my-mongo-set
     networks:
       - mynetwork
+  mongo2:
+    hostname: mongo2
+    image: mongo:latest
+    expose:
+      - 27017
+      - 30002
+    ports:
+      - 30002:27017
+    command: mongod --replSet my-mongo-set
+    networks:
+      - mynetwork
+
+  mongoinit:
+    image: mongo:latest
+    restart: "no"
+    depends_on:
+      - mongo1
+      - mongo2
+    networks:
+      - mynetwork
+    command: >
+      mongosh --host mongo1:27017 --eval 
+      '
+      db = (new Mongo("mongo1:27017")).getDB("test");
+      config = {
+      "_id" : "my-mongo-set",
+      "members" : [
+        {
+          "_id" : 0,
+          "host" : "mongo1:27017"
+        },
+        {
+          "_id" : 1,
+          "host" : "mongo2:27017"
+        }
+      ]
+      };
+      rs.initiate(config);
+      '
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -65,6 +100,8 @@ services:
     depends_on:
       - zookeeper
       - kafka
+      - mongo1
+      - mongo2
     ports:
       - 8083:8083
     expose:
@@ -96,78 +133,13 @@ services:
         confluent-hub install --no-prompt mongodb/kafka-connect-mongodb:1.11.0
         echo 'Launching Kafka Connect worker'
         /etc/confluent/docker/run &
+        wget --retry-connrefused --wait=20 --post-file=/home/connectors/source-mongo.json --header='Content-Type: application/json' http://localhost:8083/connectors &
+        wget --retry-connrefused --wait=20 --post-file=/home/connectors/sink-mongo.json --header='Content-Type: application/json' http://localhost:8083/connectors &
         sleep infinity
     networks:
       - mynetwork
     volumes:
       - ./connectors:/home/connectors
-
-  mongo1:
-    hostname: mongo1
-    image: mongo
-    expose:
-      - 27017
-      - 30001
-    ports:
-      - 30001:27017
-    command: mongod --replSet my-mongo-set
-    networks:
-      - mynetwork
-  mongo2:
-    hostname: mongo2
-    image: mongo
-    expose:
-      - 27017
-      - 30002
-    ports:
-      - 30002:27017
-    command: mongod --replSet my-mongo-set
-    networks:
-      - mynetwork
-  mongo3:
-    hostname: mongo3
-    image: mongo
-    expose:
-      - 27017
-      - 30003
-    ports:
-      - 30003:27017
-    command: mongod --replSet my-mongo-set
-    networks:
-      - mynetwork
-
-  mongoinit:
-    image: mongo
-    restart: "no"
-    depends_on:
-      - mongo1
-      - mongo2
-      - mongo3
-    networks:
-      - mynetwork
-    command: >
-      mongosh --host mongo1:27017 --eval 
-      '
-      db = (new Mongo("mongo1:27017")).getDB("test");
-      config = {
-      "_id" : "my-mongo-set",
-      "members" : [
-        {
-          "_id" : 0,
-          "host" : "mongo1:27017"
-        },
-        {
-          "_id" : 1,
-          "host" : "mongo2:27017"
-        },
-        {
-          "_id" : 2,
-          "host" : "mongo3:27017"
-        }
-      ]
-      };
-      rs.initiate(config);
-      '
 
 networks:
   mynetwork:

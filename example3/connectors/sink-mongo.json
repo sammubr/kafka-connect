@@ -1,12 +1,13 @@
 {
-  "name": "mongo-tutorial-sink",
+  "name": "sink-mongo",
   "config": {
     "connector.class": "com.mongodb.kafka.connect.MongoSinkConnector",
     "topics": "mymongo.test1.state",
     "connection.uri": "mongodb://mongo1:27017",
     "key.converter": "org.apache.kafka.connect.storage.StringConverter",
-    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter",
     "value.converter.schemas.enable": false,
+    "delete.on.null.values": true,
     "database": "test2",
     "collection": "state"
   }
